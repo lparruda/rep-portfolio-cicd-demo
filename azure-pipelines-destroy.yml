@@ -52,7 +52,9 @@ stages:
                   -backend-config="key=staging.tfstate"
 
                 echo "==> Executando Terraform Destroy em Staging..."
-                terraform destroy -auto-approve -var-file="staging.tfvars"
+                terraform destroy -auto-approve \
+                  -var="resource_group_name=rg-lab-staging" \
+                  -var="environment=stg"
 
   # ==========================================
   # STAGE: DESTROY PRODUÇÃO
@@ -88,4 +90,6 @@ stages:
                   -backend-config="key=prod.tfstate"
 
                 echo "==> Executando Terraform Destroy em Produção..."
-                terraform destroy -auto-approve -var-file="prod.tfvars"
+                terraform destroy -auto-approve \
+                  -var="resource_group_name=rg-lab-prod" \
+                  -var="environment=prd"
