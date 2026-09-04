@@ -1,0 +1,81 @@
+trigger: none
+pr: none
+
+parameters:
+  - name: environment
+    displayName: "Ambiente para destruir"
+    type: string
+    default: staging
+    values:
+      - staging
+      - prod
+      - all
+
+variables:
+  azureServiceConnection: 'sc-azure-connection' # Substitua pelo nome exato da sua Service Connection
+  backendResourceGroup: 'rg-terraform-br'
+  backendStorageAccount: 'sttfstatepereiralabs01'
+  backendContainer: 'tfstate'
+
+stages:
+  # ==========================================
+  # STAGE: DESTROY STAGING
+  # ==========================================
+  - stage: DestroyStaging
+    displayName: "Destroy Staging"
+    condition: or(eq('${{ parameters.environment }}', 'staging'), eq('${{ parameters.environment }}', 'all'))
+    jobs:
+      - job: DestroyStgJob
+        displayName: "Terraform Destroy (Staging)"
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Terraform Init & Destroy (Staging)'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+              inlineScript: |
+                set -e
+                echo "==> Inicializando Terraform para Staging..."
+                terraform init \
+                  -backend-config="resource_group_name=$(backendResourceGroup)" \
+                  -backend-config="storage_account_name=$(backendStorageAccount)" \
+                  -backend-config="container_name=$(backendContainer)" \
+                  -backend-config="key=staging.tfstate"
+
+                echo "==> Executando Terraform Destroy em Staging..."
+                terraform destroy -auto-approve -var-file="staging.tfvars" # ajuste se usar arquivo de vars ou flags -var="environment=stg"
+
+  # ==========================================
+  # STAGE: DESTROY PRODUÇÃO
+  # ==========================================
+  - stage: DestroyProd
+    displayName: "Destroy Produção"
+    condition: or(eq('${{ parameters.environment }}', 'prod'), eq('${{ parameters.environment }}', 'all'))
+    jobs:
+      - job: DestroyProdJob
+        displayName: "Terraform Destroy (Produção)"
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Terraform Init & Destroy (Prod)'
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/terraform'
+              inlineScript: |
+                set -e
+                echo "==> Inicializando Terraform para Produção..."
+                terraform init \
+                  -backend-config="resource_group_name=$(backendResourceGroup)" \
+                  -backend-config="storage_account_name=$(backendStorageAccount)" \
+                  -backend-config="container_name=$(backendContainer)" \
+                  -backend-config="key=prod.tfstate"
+
+                echo "==> Executando Terraform Destroy em Produção..."
+                terraform destroy -auto-approve -var-file="prod.tfvars" # ajuste se usar arquivo de vars ou flags -var="environment=prd"
