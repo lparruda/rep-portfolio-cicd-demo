@@ -63,11 +63,6 @@ stages:
           steps:
           - checkout: self
 
-          - task: TerraformInstaller@0
-            inputs:
-              terraformVersion: 'latest'
-            displayName: 'Instalar Terraform'
-
           - task: AzureCLI@2
             inputs:
               azureSubscription: $(azureServiceConnection)
@@ -110,11 +105,6 @@ stages:
         deploy:
           steps:
           - checkout: self
-
-          - task: TerraformInstaller@0
-            inputs:
-              terraformVersion: 'latest'
-            displayName: 'Instalar Terraform'
 
           - task: AzureCLI@2
             inputs:
