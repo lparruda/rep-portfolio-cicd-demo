@@ -6,12 +6,140 @@ trigger:
 pool:
   vmImage: 'ubuntu-latest'
 
+variables:
+  azureServiceConnection: 'sc-azure-subscription'
+  tfResourceGroup: 'rg-terraform-br'
+  tfStorageAccount: 'sttfstatepipeline28088'
+  tfContainer: 'tfstate'
+  workingDirApp: '$(System.DefaultWorkingDirectory)/app'
+  workingDirTf: '$(System.DefaultWorkingDirectory)/terraform'
+
 stages:
-- stage: Build
-  displayName: 'Build Stage'
+# ----------------------------------------------------
+# 1. BUILD & TEST
+# ----------------------------------------------------
+- stage: BuildAndTest
+  displayName: 'Build e Testes'
   jobs:
-  - job: BuildJob
-    displayName: 'Compilação e Validação'
+  - job: AppBuild
+    displayName: 'Testar e Empacotar App'
     steps:
-    - script: echo "Pipeline conectado com sucesso ao GitHub!"
-      displayName: 'Mensagem de Teste'
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '20.x'
+      displayName: 'Instalar Node.js'
+
+    - script: |
+        npm install
+        npm test
+      workingDirectory: $(workingDirApp)
+      displayName: 'Instalar Dependencias e Executar Testes'
+
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '$(workingDirApp)'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/app-$(Build.BuildId).zip'
+        replaceExistingArchive: true
+      displayName: 'Gerar Pacote Zip'
+
+    - publish: $(Build.ArtifactStagingDirectory)/app-$(Build.BuildId).zip
+      artifact: drop-app
+      displayName: 'Publicar Artefato da Aplicacao'
+
+# ----------------------------------------------------
+# 2. DEPLOY STAGING
+# ----------------------------------------------------
+- stage: DeployStaging
+  displayName: 'Deploy para Staging'
+  dependsOn: BuildAndTest
+  jobs:
+  - deployment: DeployStg
+    environment: 'staging'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: 'latest'
+            displayName: 'Instalar Terraform'
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                cd $(workingDirTf)
+                terraform init \
+                  -backend-config="resource_group_name=$(tfResourceGroup)" \
+                  -backend-config="storage_account_name=$(tfStorageAccount)" \
+                  -backend-config="container_name=$(tfContainer)" \
+                  -backend-config="key=staging.tfstate"
+                terraform apply -auto-approve \
+                  -var="resource_group_name=rg-lab-staging" \
+                  -var="environment=stg"
+            displayName: 'Terraform Apply (Staging)'
+
+          - download: current
+            artifact: drop-app
+
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              appType: 'webAppLinux'
+              appName: 'labcicd-app-stg'
+              package: '$(Pipeline.Workspace)/drop-app/app-$(Build.BuildId).zip'
+            displayName: 'Deploy do Codigo em Staging'
+
+# ----------------------------------------------------
+# 3. DEPLOY PRODUCAO (COM APPROVAL GATE)
+# ----------------------------------------------------
+- stage: DeployProduction
+  displayName: 'Deploy para Producao'
+  dependsOn: DeployStaging
+  jobs:
+  - deployment: DeployProd
+    environment: 'production'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: 'latest'
+            displayName: 'Instalar Terraform'
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                cd $(workingDirTf)
+                terraform init \
+                  -backend-config="resource_group_name=$(tfResourceGroup)" \
+                  -backend-config="storage_account_name=$(tfStorageAccount)" \
+                  -backend-config="container_name=$(tfContainer)" \
+                  -backend-config="key=prod.tfstate"
+                terraform apply -auto-approve \
+                  -var="resource_group_name=rg-lab-prod" \
+                  -var="environment=prd"
+            displayName: 'Terraform Apply (Prod)'
+
+          - download: current
+            artifact: drop-app
+
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              appType: 'webAppLinux'
+              appName: 'labcicd-app-prd'
+              package: '$(Pipeline.Workspace)/drop-app/app-$(Build.BuildId).zip'
+            displayName: 'Deploy do Codigo em Producao'
