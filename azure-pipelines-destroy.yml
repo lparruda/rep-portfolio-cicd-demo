@@ -12,7 +12,7 @@ parameters:
       - all
 
 variables:
-  azureServiceConnection: 'sc-azure-subscription' # Substitua pelo nome exato da sua Service Connection
+  azureServiceConnection: 'sc-azure-subscription'
   backendResourceGroup: 'rg-terraform-br'
   backendStorageAccount: 'sttfstatepereiralabs01'
   backendContainer: 'tfstate'
@@ -30,6 +30,11 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
+          - task: TerraformInstaller@0
+            displayName: 'Instalar Terraform CLI'
+            inputs:
+              terraformVersion: 'latest'
+
           - task: AzureCLI@2
             displayName: 'Terraform Init & Destroy (Staging)'
             inputs:
@@ -47,7 +52,7 @@ stages:
                   -backend-config="key=staging.tfstate"
 
                 echo "==> Executando Terraform Destroy em Staging..."
-                terraform destroy -auto-approve -var-file="staging.tfvars" # ajuste se usar arquivo de vars ou flags -var="environment=stg"
+                terraform destroy -auto-approve -var-file="staging.tfvars"
 
   # ==========================================
   # STAGE: DESTROY PRODUÇÃO
@@ -61,6 +66,11 @@ stages:
         pool:
           vmImage: 'ubuntu-latest'
         steps:
+          - task: TerraformInstaller@0
+            displayName: 'Instalar Terraform CLI'
+            inputs:
+              terraformVersion: 'latest'
+
           - task: AzureCLI@2
             displayName: 'Terraform Init & Destroy (Prod)'
             inputs:
@@ -78,4 +88,4 @@ stages:
                   -backend-config="key=prod.tfstate"
 
                 echo "==> Executando Terraform Destroy em Produção..."
-                terraform destroy -auto-approve -var-file="prod.tfvars" # ajuste se usar arquivo de vars ou flags -var="environment=prd"
+                terraform destroy -auto-approve -var-file="prod.tfvars"
