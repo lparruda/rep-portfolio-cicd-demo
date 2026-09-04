@@ -9,7 +9,7 @@ pool:
 variables:
   azureServiceConnection: 'sc-azure-subscription'
   tfResourceGroup: 'rg-terraform-br'
-  tfStorageAccount: 'sttfstatepipeline28088'
+  tfStorageAccount: 'sttfstatepereiralabs01'
   tfContainer: 'tfstate'
   workingDirApp: '$(System.DefaultWorkingDirectory)/app'
   workingDirTf: '$(System.DefaultWorkingDirectory)/terraform'
