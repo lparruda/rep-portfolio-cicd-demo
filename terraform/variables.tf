@@ -1,21 +1,17 @@
 variable "resource_group_name" {
-  type        = string
-  description = "Nome do Resource Group"
+  type = string
 }
 
 variable "location" {
-  type        = string
-  default     = "brazilsouth"
-  description = "Regiao do Azure"
+  type    = string
+  default = "eastus"
 }
 
 variable "prefix" {
-  type        = string
-  default     = "labcicd"
-  description = "Prefixo para nomes unicos dos recursos"
+  type    = string
+  default = "labcicd"
 }
 
 variable "environment" {
-  type        = string
-  description = "Identificador do ambiente (ex: stg, prd)"
+  type = string
 }
