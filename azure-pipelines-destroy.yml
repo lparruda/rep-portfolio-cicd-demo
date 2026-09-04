@@ -12,7 +12,7 @@ parameters:
       - all
 
 variables:
-  azureServiceConnection: 'sc-azure-connection' # Substitua pelo nome exato da sua Service Connection
+  azureServiceConnection: 'sc-azure-subscription' # Substitua pelo nome exato da sua Service Connection
   backendResourceGroup: 'rg-terraform-br'
   backendStorageAccount: 'sttfstatepereiralabs01'
   backendContainer: 'tfstate'
